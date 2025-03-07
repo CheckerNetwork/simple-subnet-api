@@ -36,24 +36,18 @@ describe('HTTP request handler', () => {
     await app.close()
   })
 
-  /* TODO: database reset
-  beforeEach(async () => {
-    await pgPools.evaluate.query('DELETE FROM retrieval_stats')
-  })
-  */
-
   it('returns 200 for GET /', async () => {
     const res = await fetch(new URL('/', baseUrl))
     await assertResponseStatus(res, 200)
   })
 
-  it('returns 404 for unknown routes', async () => {
-    const res = await fetch(new URL('/unknown-path', baseUrl))
+  it('returns 404 when the path starts with double slash', async () => {
+    const res = await fetch(`${baseUrl}//path-not-found`)
     await assertResponseStatus(res, 404)
   })
 
-  it('returns 404 when the path starts with double slash', async () => {
-    const res = await fetch(`${baseUrl}//path-not-found`)
+  it('returns 404 for unknown path', async () => {
+    const res = await fetch(new URL('/unknown-path', baseUrl))
     await assertResponseStatus(res, 404)
   })
 })

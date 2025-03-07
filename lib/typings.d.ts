@@ -1,4 +1,13 @@
 import pg from "pg";
+import { FastifyRequest } from "fastify";
+
+export type Subnet = "walrus" | "arweave";
+
+export type RequestWithSubnet<TBody = {}, UQuery = {}> = FastifyRequest<{
+  Params: { subnet: string };
+  Body: TBody;
+  Querystring: UQuery;
+}>;
 
 export interface Logger {
   info: typeof console.info;
