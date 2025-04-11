@@ -1,0 +1,7 @@
+CREATE TABLE IF NOT EXISTS checker_rounds (
+    id BIGSERIAL PRIMARY KEY,
+    start_time TIMESTAMPTZ NOT NULL,
+    end_time TIMESTAMPTZ NOT NULL,
+    active BOOLEAN NOT NULL DEFAULT FALSE,
+    max_tasks_per_node INT NOT NULL DEFAULT 360
+);
