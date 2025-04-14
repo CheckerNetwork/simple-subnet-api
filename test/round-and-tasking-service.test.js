@@ -185,7 +185,7 @@ const givenRound = async (pgPool, active = false) => {
 
   const { rows } = await pgPool.query(`
     INSERT INTO checker_rounds (start_time, end_time, active)
-    VALUES ($1, $2, $3, $4)
+    VALUES ($1, $2, $3)
     RETURNING *
   `, [now, endTime, active])
 
