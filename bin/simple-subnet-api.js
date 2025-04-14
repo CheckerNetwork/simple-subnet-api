@@ -1,6 +1,6 @@
 import '../lib/instrument.js'
 import { createApp } from '../lib/app.js'
-import { DATABASE_URL, HOST, PORT, REQUEST_LOGGING, poolConfig } from '../lib/config.js'
+import { DATABASE_URL, HOST, PORT, REQUEST_LOGGING, poolConfig, roundServiceConfig, taskingServiceConfig } from '../lib/config.js'
 import { TaskingService } from '../lib/tasking-service.js'
 import { RoundService } from '../lib/round-service.js'
 import { createPgPool } from '../lib/pool.js'
@@ -8,18 +8,12 @@ import { createPgPool } from '../lib/pool.js'
 const pool = await createPgPool(DATABASE_URL)
 const taskingService = new TaskingService(
   pool,
-  {
-    maxTasks: 100
-  }
+  taskingServiceConfig
 )
 const roundService = new RoundService(
   pool,
   taskingService,
-  {
-    roundDurationMs: 1 * 60 * 1000, // 20 minutes
-    maxTasksPerNode: 10,
-    checkRoundIntervalMs: 1000 // 1 minute
-  }
+  roundServiceConfig
 )
 
 roundService.start().catch((error) => {
