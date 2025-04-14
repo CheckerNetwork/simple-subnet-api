@@ -8,8 +8,6 @@ import { TaskingService } from '../lib/tasking-service.js'
 
 const DEFAULT_CONFIG = {
   roundDurationMs: 1000,
-  maxTasksPerSubnet: 100,
-  maxTasksPerNode: 10,
   checkRoundIntervalMs: 200
 }
 
@@ -35,7 +33,7 @@ describe('round and tasking service', () => {
   describe('RoundService', () => {
     describe('rounds', () => {
       it('should create a new round if no active round exists', async () => {
-        const taskingService = new TaskingService(pgPool, DEFAULT_CONFIG)
+        const taskingService = new TaskingService(pgPool)
         const roundService = new RoundService(pgPool, taskingService, DEFAULT_CONFIG)
 
         await roundService.start()
@@ -50,11 +48,11 @@ describe('round and tasking service', () => {
         const now = new Date()
         const endTime = new Date(now.getTime() + DEFAULT_CONFIG.roundDurationMs)
         await pgPool.query(`
-        INSERT INTO checker_rounds (start_time, end_time, max_tasks_per_node, active)
-        VALUES ($1, $2, $3, $4)
-      `, [now, endTime, DEFAULT_CONFIG.maxTasksPerNode, true])
+        INSERT INTO checker_rounds (start_time, end_time, active)
+        VALUES ($1, $2, $3)
+      `, [now, endTime, true])
 
-        const taskingService = new TaskingService(pgPool, DEFAULT_CONFIG)
+        const taskingService = new TaskingService(pgPool)
         const roundService = new RoundService(pgPool, taskingService, DEFAULT_CONFIG)
 
         await roundService.start()
@@ -66,7 +64,7 @@ describe('round and tasking service', () => {
       })
 
       it('should stop the round service and prevent further round checks', async () => {
-        const taskingService = new TaskingService(pgPool, DEFAULT_CONFIG)
+        const taskingService = new TaskingService(pgPool)
         const roundService = new RoundService(pgPool, taskingService, DEFAULT_CONFIG)
 
         await roundService.start()
@@ -89,10 +87,10 @@ describe('round and tasking service', () => {
         const endTime = new Date(now.getTime() + 1000) // 1 second duration
         await pgPool.query(`
         INSERT INTO checker_rounds (start_time, end_time, max_tasks_per_node, active)
-        VALUES ($1, $2, $3, $4)
-      `, [now, endTime, DEFAULT_CONFIG.maxTasksPerNode, true])
+        VALUES ($1, $2, $3)
+      `, [now, endTime, true])
 
-        const taskingService = new TaskingService(pgPool, DEFAULT_CONFIG)
+        const taskingService = new TaskingService(pgPool)
         const roundService = new RoundService(pgPool, taskingService, DEFAULT_CONFIG)
 
         await roundService.start()
@@ -115,7 +113,7 @@ describe('round and tasking service', () => {
   describe('TaskingService', () => {
     describe('registerTaskSampler', () => {
       it('should register a task sampler for a subnet', () => {
-        const taskingService = new TaskingService(pgPool, DEFAULT_CONFIG)
+        const taskingService = new TaskingService(pgPool)
         const samplerFn = async () => []
         taskingService.registerTaskSampler('subnet1', samplerFn)
 
@@ -123,7 +121,7 @@ describe('round and tasking service', () => {
       })
 
       it('should throw an error if samplerFn is not a function', () => {
-        const taskingService = new TaskingService(pgPool, DEFAULT_CONFIG)
+        const taskingService = new TaskingService(pgPool)
         assert.throws(
           // @ts-ignore
           () => taskingService.registerTaskSampler('subnet1', null),
@@ -134,18 +132,18 @@ describe('round and tasking service', () => {
 
     describe('task generation', () => {
       it('should generate tasks for all registered subnets that dont throw errors', async () => {
-        const taskingService = new TaskingService(pgPool, DEFAULT_CONFIG)
+        const taskingService = new TaskingService(pgPool)
 
-        taskingService.registerTaskSampler('subnet1', async (maxTasks) => [
+        taskingService.registerTaskSampler('subnet1', async () => [
           { payloadId: 'task1', nodeId: 'node1' },
           { payloadId: 'task2', nodeId: 'node2' }
         ])
 
-        taskingService.registerTaskSampler('subnet2', async (maxTasks) => [
+        taskingService.registerTaskSampler('subnet2', async () => [
           { payloadId: 'task3', nodeId: 'node3' }
         ])
 
-        taskingService.registerTaskSampler('subnet3', async (maxTasks) => {
+        taskingService.registerTaskSampler('subnet3', async () => {
           throw new Error('Error sampling tasks')
         })
 
@@ -165,7 +163,7 @@ describe('round and tasking service', () => {
       })
 
       it('should not generate tasks if no samplers are registered', async () => {
-        const taskingService = new TaskingService(pgPool, DEFAULT_CONFIG)
+        const taskingService = new TaskingService(pgPool)
 
         const round = await givenRound(pgPool)
         taskingService.generateTasksForRound(round.id)
