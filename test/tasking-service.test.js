@@ -6,7 +6,7 @@ import { DATABASE_URL } from '../lib/config.js'
 import { TaskingService } from '../lib/tasking-service.js'
 
 const DEFAULT_CONFIG = {
-  maxTasks: 100
+  maxTasksPerSubnet: 100
 }
 
 describe('TaskingService', () => {
@@ -50,16 +50,16 @@ describe('TaskingService', () => {
     it('should generate tasks for all registered subnets that dont throw errors', async () => {
       const taskingService = new TaskingService(pgPool, DEFAULT_CONFIG)
 
-      taskingService.registerTaskSampler('subnet1', async () => [
+      taskingService.registerTaskSampler('subnet1', async (maxTasks) => [
         { payloadId: 'task1', nodeId: 'node1' },
         { payloadId: 'task2', nodeId: 'node2' }
       ])
 
-      taskingService.registerTaskSampler('subnet2', async () => [
+      taskingService.registerTaskSampler('subnet2', async (maxTasks) => [
         { payloadId: 'task3', nodeId: 'node3' }
       ])
 
-      taskingService.registerTaskSampler('subnet3', async () => {
+      taskingService.registerTaskSampler('subnet3', async (maxTasks) => {
         throw new Error('Error sampling tasks')
       })
 

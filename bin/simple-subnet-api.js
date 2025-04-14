@@ -9,7 +9,7 @@ const pool = await createPgPool(DATABASE_URL)
 const taskingService = new TaskingService(
   pool,
   {
-    maxTasks: 100
+    maxTasksPerSubnet: 100
   }
 )
 const roundService = new RoundService(
