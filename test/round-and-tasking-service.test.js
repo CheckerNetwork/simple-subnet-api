@@ -86,7 +86,7 @@ describe('round and tasking service', () => {
         const now = new Date()
         const endTime = new Date(now.getTime() + 1000) // 1 second duration
         await pgPool.query(`
-        INSERT INTO checker_rounds (start_time, end_time, max_tasks_per_node, active)
+        INSERT INTO checker_rounds (start_time, end_time, active)
         VALUES ($1, $2, $3)
       `, [now, endTime, true])
 
@@ -179,16 +179,15 @@ describe('round and tasking service', () => {
  *
  * @param {import('../lib/typings.js').PgPool} pgPool
  */
-const givenRound = async (pgPool) => {
+const givenRound = async (pgPool, active = false) => {
   const now = new Date()
   const endTime = new Date(now.getTime() + 1000) // 1 second duration
-  const maxTasksPerNode = 100
 
   const { rows } = await pgPool.query(`
-    INSERT INTO checker_rounds (start_time, end_time, max_tasks_per_node, active)
+    INSERT INTO checker_rounds (start_time, end_time, active)
     VALUES ($1, $2, $3, $4)
     RETURNING *
-  `, [now, endTime, maxTasksPerNode, false])
+  `, [now, endTime, active])
 
   return rows[0]
 }
