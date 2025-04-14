@@ -8,7 +8,6 @@ import { TaskingService } from '../lib/tasking-service.js'
 
 const DEFAULT_CONFIG = {
   roundDurationMs: 1000,
-  maxTasks: 100,
   checkRoundIntervalMs: 200
 }
 
@@ -21,9 +20,7 @@ describe('RoundService', () => {
   before(async () => {
     pgPool = await createPgPool(DATABASE_URL)
     await migrateWithPgClient(pgPool)
-    taskingService = new TaskingService(pgPool, {
-      maxTasks: DEFAULT_CONFIG.maxTasks
-    })
+    taskingService = new TaskingService()
   })
 
   after(async () => {
@@ -51,9 +48,9 @@ describe('RoundService', () => {
       const now = new Date()
       const endTime = new Date(now.getTime() + DEFAULT_CONFIG.roundDurationMs)
       await pgPool.query(`
-        INSERT INTO checker_rounds (start_time, end_time, max_tasks_per_node, active)
-        VALUES ($1, $2, $3, $4)
-      `, [now, endTime, DEFAULT_CONFIG.maxTasksPerNode, true])
+        INSERT INTO checker_rounds (start_time, end_time, active)
+        VALUES ($1, $2, $3)
+      `, [now, endTime, true])
 
       const roundService = new RoundService(pgPool, taskingService, DEFAULT_CONFIG)
 
@@ -87,9 +84,9 @@ describe('RoundService', () => {
       const now = new Date()
       const endTime = new Date(now.getTime() + 1000) // 1 second duration
       await pgPool.query(`
-        INSERT INTO checker_rounds (start_time, end_time, max_tasks_per_node, active)
-        VALUES ($1, $2, $3, $4)
-      `, [now, endTime, DEFAULT_CONFIG.maxTasksPerNode, true])
+        INSERT INTO checker_rounds (start_time, end_time, active)
+        VALUES ($1, $2, $3)
+      `, [now, endTime, true])
 
       const roundService = new RoundService(pgPool, taskingService, DEFAULT_CONFIG)
 
