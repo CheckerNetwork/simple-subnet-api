@@ -9,7 +9,6 @@ import { TaskingService } from '../lib/tasking-service.js'
 const DEFAULT_CONFIG = {
   roundDurationMs: 1000,
   maxTasks: 100,
-  maxTasksPerNode: 10,
   checkRoundIntervalMs: 200
 }
 
