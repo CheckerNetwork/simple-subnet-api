@@ -47,3 +47,33 @@ export const postMeasurement = (baseUrl, subnet, measurement) => {
     body: JSON.stringify(measurement)
   })
 }
+
+/**
+ * @param {object} args
+ * @param {import('../lib/typings.js').PgPool} args.pgPool
+ * @param {Date} args.startTime
+ * @param {Date} args.endTime
+ * @param {boolean} [args.active=false]
+ */
+export const withRound = async ({ pgPool, startTime, endTime, active = false }) => {
+  const { rows } = await pgPool.query(`
+    INSERT INTO checker_rounds (start_time, end_time, active)
+    VALUES ($1, $2, $3)
+    RETURNING *
+  `, [startTime, endTime, active])
+
+  return rows[0]
+}
+
+/**
+ *
+ * @param {import('../lib/typings.js').PgPool} pgPool
+ * @param {string} roundId
+ * @param {string} subnet
+ * @param {object} task
+ */
+export const withSubnetTasks = async (pgPool, roundId, subnet, task) => {
+  await pgPool.query(`
+    INSERT INTO checker_subnet_tasks (round_id, subnet, task_definition)
+    VALUES ($1, $2, $3)`, [roundId, subnet, task])
+}
