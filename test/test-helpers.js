@@ -67,3 +67,16 @@ export const withRound = async ({ pgPool, roundDurationMs, active = false }) => 
 
   return rows[0]
 }
+
+/**
+ *
+ * @param {import('../lib/typings.js').PgPool} pgPool
+ * @param {string} roundId
+ * @param {string} subnet
+ * @param {object} task
+ */
+export const withSubnetTasks = async (pgPool, roundId, subnet, task) => {
+  await pgPool.query(`
+    INSERT INTO checker_subnet_tasks (round_id, subnet, task_definition)
+    VALUES ($1, $2, $3)`, [roundId, subnet, task])
+}
