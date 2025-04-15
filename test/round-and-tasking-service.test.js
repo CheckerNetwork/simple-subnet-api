@@ -105,7 +105,6 @@ describe('round and tasking service', () => {
         assert.strictEqual(allRounds.length, 2)
       })
     })
-
   })
 
   describe('TaskingService', () => {
