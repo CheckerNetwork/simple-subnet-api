@@ -5,6 +5,7 @@ import { migrateWithPgClient } from '../lib/migrate.js'
 import { DATABASE_URL } from '../lib/config.js'
 import { RoundService } from '../lib/round-service.js'
 import { TaskingService } from '../lib/tasking-service.js'
+import { withRound } from './test-helpers.js'
 
 const DEFAULT_CONFIG = {
   roundDurationMs: 1000,
@@ -30,6 +31,7 @@ describe('RoundService', () => {
   beforeEach(async () => {
     // Reset the database state before each test
     await pgPool.query('DELETE FROM checker_rounds')
+    await pgPool.query('ALTER SEQUENCE checker_rounds_id_seq RESTART WITH 1')
   })
 
   describe('rounds', () => {
@@ -45,12 +47,14 @@ describe('RoundService', () => {
     })
 
     it('should resume an active round if one exists', async () => {
-      const now = new Date()
-      const endTime = new Date(now.getTime() + DEFAULT_CONFIG.roundDurationMs)
-      await pgPool.query(`
-        INSERT INTO checker_rounds (start_time, end_time, active)
-        VALUES ($1, $2, $3)
-      `, [now, endTime, true])
+      const startTime = new Date()
+      const endTime = new Date(startTime.getTime() + DEFAULT_CONFIG.roundDurationMs)
+      await withRound({
+        pgPool,
+        startTime,
+        endTime,
+        active: true
+      })
 
       const roundService = new RoundService(pgPool, taskingService, DEFAULT_CONFIG)
 
@@ -59,7 +63,7 @@ describe('RoundService', () => {
 
       const { rows: rounds } = await pgPool.query('SELECT * FROM checker_rounds WHERE active = true')
       assert.strictEqual(rounds.length, 1)
-      assert.strictEqual(new Date(rounds[0].start_time).toISOString(), now.toISOString())
+      assert.strictEqual(new Date(rounds[0].start_time).toISOString(), startTime.toISOString())
     })
 
     it('should stop the round service and prevent further round checks', async () => {
@@ -81,12 +85,14 @@ describe('RoundService', () => {
 
   describe('round transitions', () => {
     it('should deactivate the old round and create a new one when the current round ends', async () => {
-      const now = new Date()
-      const endTime = new Date(now.getTime() + 1000) // 1 second duration
-      await pgPool.query(`
-        INSERT INTO checker_rounds (start_time, end_time, active)
-        VALUES ($1, $2, $3)
-      `, [now, endTime, true])
+      const startTime = new Date()
+      const endTime = new Date(startTime.getTime() + 1000) // 1 second duration
+      await withRound({
+        pgPool,
+        startTime,
+        endTime,
+        active: true
+      })
 
       const roundService = new RoundService(pgPool, taskingService, DEFAULT_CONFIG)
 

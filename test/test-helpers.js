@@ -47,3 +47,20 @@ export const postMeasurement = (baseUrl, subnet, measurement) => {
     body: JSON.stringify(measurement)
   })
 }
+
+/**
+ * @param {object} args
+ * @param {import('../lib/typings.js').PgPool} args.pgPool
+ * @param {Date} args.startTime
+ * @param {Date} args.endTime
+ * @param {boolean} [args.active=false]
+ */
+export const withRound = async ({ pgPool, startTime, endTime, active = false }) => {
+  const { rows } = await pgPool.query(`
+    INSERT INTO checker_rounds (start_time, end_time, active)
+    VALUES ($1, $2, $3)
+    RETURNING *
+  `, [startTime, endTime, active])
+
+  return rows[0]
+}
