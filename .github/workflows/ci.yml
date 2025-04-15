@@ -59,6 +59,7 @@ jobs:
     if: github.ref == 'refs/heads/main'
     needs: [build, docker-build]
     runs-on: ubuntu-latest
+    concurrency: deploy-group    # ensure only one deployment runs at a time
     steps:
       - uses: actions/checkout@v4
       - uses: superfly/flyctl-actions/setup-flyctl@master
