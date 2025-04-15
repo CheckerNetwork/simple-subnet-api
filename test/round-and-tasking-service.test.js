@@ -15,13 +15,31 @@ const DEFAULT_CONFIG = {
 describe('round and tasking service', () => {
   /** @type {import('pg').Pool} */
   let pgPool
+  /** @type {import('fastify').FastifyInstance} */
+  let app
+  /** @type {string} */
+  let baseUrl
 
   before(async () => {
     pgPool = await createPgPool(DATABASE_URL)
     await migrateWithPgClient(pgPool)
+
+    app = createApp({
+      databaseUrl: DATABASE_URL,
+      dbPoolConfig: poolConfig,
+      logger: {
+        level:
+          process.env.DEBUG === '*' || process.env.DEBUG?.includes('test')
+            ? 'debug'
+            : 'error'
+      }
+    })
+
+    baseUrl = await app.listen()
   })
 
   after(async () => {
+    await app.close()
     await pgPool.end()
   })
 
@@ -172,51 +190,16 @@ describe('round and tasking service', () => {
     })
   })
   describe('round API routes', () => {
-    /** @type {import('fastify').FastifyInstance} */
-    let app
-    /** @type {string} */
-    let baseUrl
-
-    before(async () => {
-      app = createApp({
-        databaseUrl: DATABASE_URL,
-        dbPoolConfig: poolConfig,
-        logger: {
-          level:
-            process.env.DEBUG === '*' || process.env.DEBUG?.includes('test')
-              ? 'debug'
-              : 'error'
-        }
-      })
-
-      baseUrl = await app.listen()
-    })
-
-    after(async () => {
-      await app.close()
-    })
-
     describe('GET /rounds/current', () => {
       it('should return the current active round with tasks', async () => {
-        const now = new Date()
-        const endTime = new Date(now.getTime() + 1000)
-        const round = await pgPool.query(`
-          INSERT INTO checker_rounds (start_time, end_time, max_tasks_per_node, active)
-          VALUES ($1, $2, $3, $4)
-          RETURNING *
-        `, [now, endTime, DEFAULT_CONFIG.maxTasksPerNode, true])
-
-        const roundId = round.rows[0].id
-        await pgPool.query(`
-          INSERT INTO checker_subnet_tasks (round_id, subnet, task_definition)
-          VALUES ($1, $2, $3)
-        `, [roundId, 'walrus', { key: 'value' }])
+        const round = await givenRound(pgPool, true)
+        await givenSubnetTasks(pgPool, round.id, 'walrus', { key: 'value' })
 
         /** @type {any} */
         const response = await fetch(`${baseUrl}/rounds/current`)
         assert.strictEqual(response.status, 200)
         const responseBody = await response.json()
-        assert.equal(responseBody.id, roundId)
+        assert.equal(responseBody.id, round.id)
         assert.strictEqual(responseBody.active, true)
         assert.strictEqual(responseBody.tasks.length, 1)
         assert.deepStrictEqual(responseBody.tasks, [{
@@ -234,25 +217,14 @@ describe('round and tasking service', () => {
 
     describe('GET /rounds/:roundId', () => {
       it('should return the round with the specified ID and its tasks', async () => {
-        const now = new Date()
-        const endTime = new Date(now.getTime() + 1000)
-        const round = await pgPool.query(`
-          INSERT INTO checker_rounds (start_time, end_time, max_tasks_per_node, active)
-          VALUES ($1, $2, $3, $4)
-          RETURNING *
-        `, [now, endTime, DEFAULT_CONFIG.maxTasksPerNode, false])
-
-        const roundId = round.rows[0].id
-        await pgPool.query(`
-          INSERT INTO checker_subnet_tasks (round_id, subnet, task_definition)
-          VALUES ($1, $2, $3)
-        `, [roundId, 'arweave', { key: 'value' }])
+        const round = await givenRound(pgPool, false)
+        await givenSubnetTasks(pgPool, round.id, 'arweave', { key: 'value' })
 
         /** @type {any} */
-        const response = await fetch(`${baseUrl}/rounds/${roundId}`)
+        const response = await fetch(`${baseUrl}/rounds/${round.id}`)
         assert.strictEqual(response.status, 200)
         const responseBody = await response.json()
-        assert.equal(responseBody.id, roundId)
+        assert.equal(responseBody.id, round.id)
         assert.strictEqual(responseBody.active, false)
         assert.strictEqual(responseBody.tasks.length, 1)
         assert.deepStrictEqual(responseBody.tasks, [{
@@ -290,4 +262,17 @@ const givenRound = async (pgPool, active = false) => {
   `, [now, endTime, active])
 
   return rows[0]
+}
+
+/**
+ *
+ * @param {import('../lib/typings.js').PgPool} pgPool
+ * @param {string} roundId
+ * @param {string} subnet
+ * @param {object} task
+ */
+const givenSubnetTasks = async (pgPool, roundId, subnet, task) => {
+  await pgPool.query(`
+    INSERT INTO checker_subnet_tasks (round_id, subnet, task_definition)
+    VALUES ($1, $2, $3)`, [roundId, subnet, task])
 }
