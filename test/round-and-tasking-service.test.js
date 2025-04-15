@@ -197,12 +197,9 @@ describe('round and tasking service', () => {
   describe('round API routes', () => {
     describe('GET /rounds/current', () => {
       it('should return the current active round with tasks', async () => {
-        const startTime = new Date()
-        const endTime = new Date(startTime.getTime() + 1000) // 1 second duration
         const round = await withRound({
           pgPool,
-          startTime,
-          endTime,
+          roundDurationMs: 1000, // 1 second duration
           active: true
         })
         await withSubnetTasks(pgPool, round.id, 'walrus', { key: 'value' })
@@ -224,17 +221,25 @@ describe('round and tasking service', () => {
         /** @type {any} */
         const response = await fetch(`${baseUrl}/rounds/current`)
         assert.strictEqual(response.status, 404)
+
+        // insert inactive round
+        await withRound({
+          pgPool,
+          roundDurationMs: 1000, // 1 second duration
+          active: false
+        })
+
+        /** @type {any} */
+        const secondResponse = await fetch(`${baseUrl}/rounds/current`)
+        assert.strictEqual(secondResponse.status, 404)
       })
     })
 
     describe('GET /rounds/:roundId', () => {
       it('should return the round with the specified ID and its tasks', async () => {
-        const startTime = new Date()
-        const endTime = new Date(startTime.getTime() + 1000) // 1 second duration
         const round = await withRound({
           pgPool,
-          startTime,
-          endTime,
+          roundDurationMs: 1000, // 1 second duration
           active: false
         })
         await withSubnetTasks(pgPool, round.id, 'arweave', { key: 'value' })
