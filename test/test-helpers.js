@@ -51,16 +51,19 @@ export const postMeasurement = (baseUrl, subnet, measurement) => {
 /**
  * @param {object} args
  * @param {import('../lib/typings.js').PgPool} args.pgPool
- * @param {Date} args.startTime
- * @param {Date} args.endTime
+ * @param {number} args.roundDurationMs
  * @param {boolean} [args.active=false]
  */
-export const withRound = async ({ pgPool, startTime, endTime, active = false }) => {
+export const withRound = async ({ pgPool, roundDurationMs, active = false }) => {
   const { rows } = await pgPool.query(`
     INSERT INTO checker_rounds (start_time, end_time, active)
-    VALUES ($1, $2, $3)
+    VALUES (
+      NOW(), 
+      NOW() + ($1 || ' milliseconds')::INTERVAL, 
+      $2
+    )
     RETURNING *
-  `, [startTime, endTime, active])
+  `, [roundDurationMs, active])
 
   return rows[0]
 }
