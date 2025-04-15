@@ -9,10 +9,8 @@ export type RequestWithSubnet<TBody = {}, UQuery = {}> = FastifyRequest<{
   Querystring: UQuery;
 }>;
 
-export type RequestWithRoundId<TBody = {}, UQuery = {}> = FastifyRequest<{
+export type RequestWithRoundId = FastifyRequest<{
   Params: { roundId: string };
-  Body: TBody;
-  Querystring: UQuery;
 }>;
 
 export interface Logger {
