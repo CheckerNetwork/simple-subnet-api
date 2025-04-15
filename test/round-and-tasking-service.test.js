@@ -225,7 +225,8 @@ describe('round and tasking service', () => {
         const round = await withRound({
           pgPool,
           startTime,
-          endTime
+          endTime,
+          active: true
         })
         await withSubnetTasks(pgPool, round.id, 'walrus', { key: 'value' })
 
@@ -256,7 +257,8 @@ describe('round and tasking service', () => {
         const round = await withRound({
           pgPool,
           startTime,
-          endTime
+          endTime,
+          active: false
         })
         await withSubnetTasks(pgPool, round.id, 'arweave', { key: 'value' })
 
