@@ -18,18 +18,6 @@ roundService.start().catch((error) => {
   process.exit(1)
 })
 
-process.on('SIGINT', async () => {
-  console.log('Stopping round service...')
-  roundService.stop()
-  process.exit(0)
-})
-
-process.on('SIGTERM', async () => {
-  console.log('Stopping round service...')
-  roundService.stop()
-  process.exit(0)
-})
-
 const app = createApp({
   databaseUrl: DATABASE_URL,
   dbPoolConfig: poolConfig,
