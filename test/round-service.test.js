@@ -9,7 +9,7 @@ import { withRound } from './test-helpers.js'
 
 const DEFAULT_CONFIG = {
   roundDurationMs: 1000,
-  checkRoundIntervalMs: 200
+  checkRoundExpirationIntervalMs: 200
 }
 
 describe('RoundService', () => {
@@ -72,7 +72,7 @@ describe('RoundService', () => {
       assert.strictEqual(rounds.length, 1)
 
       // Wait for the check interval to pass and ensure no new rounds are created
-      await new Promise(resolve => setTimeout(resolve, DEFAULT_CONFIG.checkRoundIntervalMs + 1000))
+      await new Promise(resolve => setTimeout(resolve, DEFAULT_CONFIG.checkRoundExpirationIntervalMs + 1000))
 
       const { rows: newRounds } = await pgPool.query('SELECT * FROM checker_rounds')
       assert.strictEqual(newRounds.length, 1)
