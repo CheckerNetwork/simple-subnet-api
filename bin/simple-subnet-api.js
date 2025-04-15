@@ -6,7 +6,7 @@ import { RoundService } from '../lib/round-service.js'
 import { createPgPool } from '../lib/pool.js'
 
 const pool = await createPgPool(DATABASE_URL)
-const taskingService = new TaskingService()
+const taskingService = new TaskingService(pool)
 const roundService = new RoundService(
   pool,
   taskingService,
