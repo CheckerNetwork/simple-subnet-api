@@ -2,9 +2,10 @@ import assert from 'assert'
 import { after, before, beforeEach, describe, it } from 'node:test'
 import { createPgPool } from '../lib/pool.js'
 import { migrateWithPgClient } from '../lib/migrate.js'
-import { DATABASE_URL } from '../lib/config.js'
+import { DATABASE_URL, poolConfig } from '../lib/config.js'
 import { RoundService } from '../lib/round-service.js'
 import { TaskingService } from '../lib/tasking-service.js'
+import { createApp } from '../lib/app.js'
 
 const DEFAULT_CONFIG = {
   roundDurationMs: 1000,
@@ -172,6 +173,108 @@ describe('round and tasking service', () => {
 
         const { rows: tasks } = await pgPool.query('SELECT * FROM checker_subnet_tasks WHERE round_id = $1', [round.id])
         assert.strictEqual(tasks.length, 0)
+      })
+    })
+  })
+  describe('round API routes', () => {
+    /** @type {import('fastify').FastifyInstance} */
+    let app
+    /** @type {string} */
+    let baseUrl
+
+    before(async () => {
+      app = createApp({
+        databaseUrl: DATABASE_URL,
+        dbPoolConfig: poolConfig,
+        logger: {
+          level:
+            process.env.DEBUG === '*' || process.env.DEBUG?.includes('test')
+              ? 'debug'
+              : 'error'
+        }
+      })
+
+      baseUrl = await app.listen()
+    })
+
+    after(async () => {
+      await app.close()
+    })
+
+    describe('GET /rounds/current', () => {
+      it('should return the current active round with tasks', async () => {
+        const now = new Date()
+        const endTime = new Date(now.getTime() + 1000)
+        const round = await pgPool.query(`
+          INSERT INTO checker_rounds (start_time, end_time, max_tasks_per_node, active)
+          VALUES ($1, $2, $3, $4)
+          RETURNING *
+        `, [now, endTime, DEFAULT_CONFIG.maxTasksPerNode, true])
+
+        const roundId = round.rows[0].id
+        await pgPool.query(`
+          INSERT INTO checker_subnet_tasks (round_id, subnet, task_definition)
+          VALUES ($1, $2, $3)
+        `, [roundId, 'walrus', { key: 'value' }])
+
+        /** @type {any} */
+        const response = await fetch(`${baseUrl}/rounds/current`)
+        assert.strictEqual(response.status, 200)
+        const responseBody = await response.json()
+        assert.equal(responseBody.id, roundId)
+        assert.strictEqual(responseBody.active, true)
+        assert.strictEqual(responseBody.tasks.length, 1)
+        assert.deepStrictEqual(responseBody.tasks, [{
+          subnet: 'walrus',
+          task_definition: { key: 'value' }
+        }])
+      })
+
+      it('should return 404 if no current active', async () => {
+        /** @type {any} */
+        const response = await fetch(`${baseUrl}/rounds/current`)
+        assert.strictEqual(response.status, 404)
+      })
+    })
+
+    describe('GET /rounds/:roundId', () => {
+      it('should return the round with the specified ID and its tasks', async () => {
+        const now = new Date()
+        const endTime = new Date(now.getTime() + 1000)
+        const round = await pgPool.query(`
+          INSERT INTO checker_rounds (start_time, end_time, max_tasks_per_node, active)
+          VALUES ($1, $2, $3, $4)
+          RETURNING *
+        `, [now, endTime, DEFAULT_CONFIG.maxTasksPerNode, false])
+
+        const roundId = round.rows[0].id
+        await pgPool.query(`
+          INSERT INTO checker_subnet_tasks (round_id, subnet, task_definition)
+          VALUES ($1, $2, $3)
+        `, [roundId, 'arweave', { key: 'value' }])
+
+        /** @type {any} */
+        const response = await fetch(`${baseUrl}/rounds/${roundId}`)
+        assert.strictEqual(response.status, 200)
+        const responseBody = await response.json()
+        assert.equal(responseBody.id, roundId)
+        assert.strictEqual(responseBody.active, false)
+        assert.strictEqual(responseBody.tasks.length, 1)
+        assert.deepStrictEqual(responseBody.tasks, [{
+          subnet: 'arweave',
+          task_definition: { key: 'value' }
+        }])
+      })
+
+      it('should return 400 if roundId is not a number', async () => {
+        const response = await fetch(`${baseUrl}/rounds/invalid`)
+        assert.strictEqual(response.status, 400)
+      })
+
+      it('should return 404 if round is not found', async () => {
+        /** @type {any} */
+        const response = await fetch(`${baseUrl}/rounds/999999`)
+        assert.strictEqual(response.status, 404)
       })
     })
   })
