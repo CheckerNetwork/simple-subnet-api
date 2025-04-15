@@ -5,6 +5,7 @@ import { migrateWithPgClient } from '../lib/migrate.js'
 import { DATABASE_URL } from '../lib/config.js'
 import { RoundService } from '../lib/round-service.js'
 import { TaskingService } from '../lib/tasking-service.js'
+import { withRound } from './test-helpers.js'
 
 const DEFAULT_CONFIG = {
   roundDurationMs: 1000,
@@ -33,6 +34,13 @@ describe('round and tasking service', () => {
   describe('RoundService', () => {
     describe('rounds', () => {
       it('should create a new round if no active round exists', async () => {
+        const startTime = new Date()
+        const endTime = new Date(startTime.getTime() + 1000) // 1 second duration
+        await withRound({
+          pgPool,
+          startTime,
+          endTime
+        })
         const taskingService = new TaskingService(pgPool)
         const roundService = new RoundService(pgPool, taskingService, DEFAULT_CONFIG)
 
@@ -45,12 +53,13 @@ describe('round and tasking service', () => {
       })
 
       it('should resume an active round if one exists', async () => {
-        const now = new Date()
-        const endTime = new Date(now.getTime() + DEFAULT_CONFIG.roundDurationMs)
-        await pgPool.query(`
-        INSERT INTO checker_rounds (start_time, end_time, active)
-        VALUES ($1, $2, $3)
-      `, [now, endTime, true])
+        const startTime = new Date()
+        const endTime = new Date(startTime.getTime() + 1000) // 1 second duration
+        await withRound({
+          pgPool,
+          startTime,
+          endTime
+        })
 
         const taskingService = new TaskingService(pgPool)
         const roundService = new RoundService(pgPool, taskingService, DEFAULT_CONFIG)
@@ -60,7 +69,7 @@ describe('round and tasking service', () => {
 
         const { rows: rounds } = await pgPool.query('SELECT * FROM checker_rounds WHERE active = true')
         assert.strictEqual(rounds.length, 1)
-        assert.strictEqual(new Date(rounds[0].start_time).toISOString(), now.toISOString())
+        assert.strictEqual(new Date(rounds[0].start_time).toISOString(), startTime.toISOString())
       })
 
       it('should stop the round service and prevent further round checks', async () => {
@@ -83,12 +92,13 @@ describe('round and tasking service', () => {
 
     describe('round transitions', () => {
       it('should deactivate the old round and create a new one when the current round ends', async () => {
-        const now = new Date()
-        const endTime = new Date(now.getTime() + 1000) // 1 second duration
-        await pgPool.query(`
-        INSERT INTO checker_rounds (start_time, end_time, active)
-        VALUES ($1, $2, $3)
-      `, [now, endTime, true])
+        const startTime = new Date()
+        const endTime = new Date(startTime.getTime() + 1000) // 1 second duration
+        await withRound({
+          pgPool,
+          startTime,
+          endTime
+        })
 
         const taskingService = new TaskingService(pgPool)
         const roundService = new RoundService(pgPool, taskingService, DEFAULT_CONFIG)
@@ -147,12 +157,15 @@ describe('round and tasking service', () => {
           throw new Error('Error sampling tasks')
         })
 
-        const mockRound = await givenRound(pgPool)
-        await taskingService.generateTasksForRound(mockRound.id)
-
-        console.log('mockRound.id', mockRound.id)
-
-        const { rows: tasks } = await pgPool.query('SELECT * FROM checker_subnet_tasks WHERE round_id = $1', [mockRound.id])
+        const startTime = new Date()
+        const endTime = new Date(startTime.getTime() + 1000) // 1 second duration
+        const round = await withRound({
+          pgPool,
+          startTime,
+          endTime
+        })
+        await taskingService.generateTasksForRound(round.id)
+        const { rows: tasks } = await pgPool.query('SELECT * FROM checker_subnet_tasks WHERE round_id = $1', [round.id])
 
         const taskPayloads = tasks.map(task => task.task_definition)
         assert.deepStrictEqual(taskPayloads.sort(), [
@@ -164,8 +177,14 @@ describe('round and tasking service', () => {
 
       it('should not generate tasks if no samplers are registered', async () => {
         const taskingService = new TaskingService(pgPool)
-
-        const round = await givenRound(pgPool)
+        const startTime = new Date()
+        const endTime = new Date(startTime.getTime() + 1000) // 1 second duration
+        const round = await withRound({
+          pgPool,
+          startTime,
+          endTime,
+          active: true
+        })
         taskingService.generateTasksForRound(round.id)
 
         const { rows: tasks } = await pgPool.query('SELECT * FROM checker_subnet_tasks WHERE round_id = $1', [round.id])
@@ -174,20 +193,3 @@ describe('round and tasking service', () => {
     })
   })
 })
-
-/**
- *
- * @param {import('../lib/typings.js').PgPool} pgPool
- */
-const givenRound = async (pgPool, active = false) => {
-  const now = new Date()
-  const endTime = new Date(now.getTime() + 1000) // 1 second duration
-
-  const { rows } = await pgPool.query(`
-    INSERT INTO checker_rounds (start_time, end_time, active)
-    VALUES ($1, $2, $3)
-    RETURNING *
-  `, [now, endTime, active])
-
-  return rows[0]
-}
