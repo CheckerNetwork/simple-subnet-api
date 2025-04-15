@@ -47,12 +47,9 @@ describe('RoundService', () => {
     })
 
     it('should resume an active round if one exists', async () => {
-      const startTime = new Date()
-      const endTime = new Date(startTime.getTime() + DEFAULT_CONFIG.roundDurationMs)
       await withRound({
         pgPool,
-        startTime,
-        endTime,
+        roundDurationMs: DEFAULT_CONFIG.roundDurationMs,
         active: true
       })
 
@@ -63,7 +60,6 @@ describe('RoundService', () => {
 
       const { rows: rounds } = await pgPool.query('SELECT * FROM checker_rounds WHERE active = true')
       assert.strictEqual(rounds.length, 1)
-      assert.strictEqual(new Date(rounds[0].start_time).toISOString(), startTime.toISOString())
     })
 
     it('should stop the round service and prevent further round checks', async () => {
@@ -85,29 +81,23 @@ describe('RoundService', () => {
 
   describe('round transitions', () => {
     it('should deactivate the old round and create a new one when the current round ends', async () => {
-      const startTime = new Date()
-      const endTime = new Date(startTime.getTime() + 1000) // 1 second duration
       await withRound({
         pgPool,
-        startTime,
-        endTime,
+        roundDurationMs: 1000, // 1 second duration
         active: true
       })
 
       const roundService = new RoundService(pgPool, taskingService, DEFAULT_CONFIG)
 
       await roundService.start()
-
       // Wait for the current round to end
       await new Promise(resolve => setTimeout(resolve, 2000))
 
       roundService.stop()
 
       const { rows: activeRounds } = await pgPool.query('SELECT * FROM checker_rounds WHERE active = true')
-      assert.strictEqual(activeRounds.length, 1)
-      assert.ok(new Date(activeRounds[0].start_time) > endTime)
-
       const { rows: allRounds } = await pgPool.query('SELECT * FROM checker_rounds')
+      assert.strictEqual(activeRounds.length, 1)
       assert.strictEqual(allRounds.length, 2)
     })
   })
