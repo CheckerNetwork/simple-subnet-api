@@ -47,7 +47,9 @@ describe('round and tasking service', () => {
   beforeEach(async () => {
     // Reset the database state before each test
     await pgPool.query('DELETE FROM checker_rounds')
+    await pgPool.query('ALTER SEQUENCE checker_rounds_id_seq RESTART WITH 1')
     await pgPool.query('DELETE FROM checker_subnet_tasks')
+    await pgPool.query('ALTER SEQUENCE checker_subnet_tasks_id_seq RESTART WITH 1')
   })
 
   describe('RoundService', () => {
@@ -58,7 +60,8 @@ describe('round and tasking service', () => {
         await withRound({
           pgPool,
           startTime,
-          endTime
+          endTime,
+          active: false
         })
         const taskingService = new TaskingService(pgPool)
         const roundService = new RoundService(pgPool, taskingService, DEFAULT_CONFIG)
@@ -77,7 +80,8 @@ describe('round and tasking service', () => {
         await withRound({
           pgPool,
           startTime,
-          endTime
+          endTime,
+          active: true
         })
 
         const taskingService = new TaskingService(pgPool)
@@ -116,7 +120,8 @@ describe('round and tasking service', () => {
         await withRound({
           pgPool,
           startTime,
-          endTime
+          endTime,
+          active: true
         })
 
         const taskingService = new TaskingService(pgPool)
