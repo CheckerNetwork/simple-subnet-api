@@ -30,7 +30,7 @@
     "debug": "^4.4.0",
     "fastify": "^5.3.2",
     "http-assert": "^1.5.0",
-    "pg": "^8.14.1",
+    "pg": "^8.15.1",
     "postgrator": "^8.0.0"
   },
   "devDependencies": {
