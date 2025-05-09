@@ -34,7 +34,7 @@
     "postgrator": "^8.0.0"
   },
   "devDependencies": {
-    "@types/pg": "^8.15.0",
+    "@types/pg": "^8.15.1",
     "prettier": "^3.5.3",
     "standard": "^17.1.2",
     "typescript": "^5.8.3"
