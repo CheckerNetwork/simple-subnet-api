@@ -1,6 +1,22 @@
 import '../lib/instrument.js'
 import { createApp } from '../lib/app.js'
-import { DATABASE_URL, HOST, PORT, REQUEST_LOGGING, poolConfig } from '../lib/config.js'
+import { DATABASE_URL, HOST, PORT, REQUEST_LOGGING, poolConfig, roundServiceConfig } from '../lib/config.js'
+import { TaskingService } from '../lib/tasking-service.js'
+import { RoundService } from '../lib/round-service.js'
+import { createPgPool } from '../lib/pool.js'
+
+const pool = await createPgPool(DATABASE_URL)
+const taskingService = new TaskingService()
+const roundService = new RoundService(
+  pool,
+  taskingService,
+  roundServiceConfig
+)
+
+roundService.start().catch((error) => {
+  console.error('Failed to start round service:', error)
+  process.exit(1)
+})
 
 const app = createApp({
   databaseUrl: DATABASE_URL,
